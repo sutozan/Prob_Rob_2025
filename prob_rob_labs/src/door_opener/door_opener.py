@@ -18,8 +18,10 @@ class DoorOpener(Node):
         self.state = 'init'
         self.counter = 0
 
+        # Assignment 4: Adding a Node Parameter
+        self.declare_parameter('forward_speed', 0.2)
+
     def heartbeat(self):
-        self.log.info('heartbeat')
         if self.state =='init': # open the door
             self.door(5.0)
             self.counter += 1
@@ -28,9 +30,11 @@ class DoorOpener(Node):
                 self.state = "move"
                 self.counter = 0
         elif self.state == "move": # move the robot
-            self.move(2.0)
+            #self.move(2.0)
+            forward_speed = self.get_parameter('forward_speed').value
+            self.move(forward_speed)
             self.counter += 1
-            self.log.info('moving the robot...')
+            self.log.info(f'moving the robot at a speed of {forward_speed}...')
             if self.counter == 50:
                 self.state = "close"
                 self.counter = 0
@@ -38,9 +42,10 @@ class DoorOpener(Node):
             self.move(0.0)
             self.door(-5.0)
             self.counter += 1
-            self.log.info('moving the robot...')
+            self.log.info('stopped moving the robot...')
             if self.counter == 10:
                 self.state = "finished"
+                self.log.info('door closed...')
                 self.counter = 0
 
     def spin(self):
