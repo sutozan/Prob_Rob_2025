@@ -12,11 +12,14 @@ def generate_launch_description():
                               description='set to true for simulation'),
         DeclareLaunchArgument('forward_speed', default_value='0.2',
                               description='Forward speed of the robot'),
+        DeclareLaunchArgument('threshold', default_value='280',
+                              description='Threshold of feature-mean signal'),
         Node(
             package='prob_rob_labs',
             executable='door_opener',
             name='door_opener',
             parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')},
-            {'forward_speed': LaunchConfiguration('forward_speed')}]
+            {'forward_speed': LaunchConfiguration('forward_speed')},
+            {'threshold': LaunchConfiguration('threshold')}]
         )
     ])
