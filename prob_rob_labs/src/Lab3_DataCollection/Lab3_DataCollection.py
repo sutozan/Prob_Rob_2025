@@ -38,7 +38,7 @@ class Lab3_DataCollection(Node):
         if self.state == 'open_door':
             self.door(5.0)
             self.counter += 1
-            if self.counter == 20:
+            if self.counter == 60:
                 self.door(0.0)
                 self.state = 'record_open'
                 self.counter = 0
@@ -53,7 +53,7 @@ class Lab3_DataCollection(Node):
         elif self.state == 'close_door':
             self.door(-5.0)
             self.counter += 1
-            if self.counter == 20:
+            if self.counter == 60:
                 self.door(0.0)
                 self.state = 'record_close'
                 self.counter = 0
