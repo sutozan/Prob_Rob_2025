@@ -15,8 +15,8 @@ class DoorOpener(Node):
         self.velocity_ = self.create_publisher(Twist, '/cmd_vel', 10)
         self.log = self.get_logger()
         self.timer = self.create_timer(heartbeat_period, self.heartbeat)
-        self.state = 'init'
-        self.counter = 0
+
+        # Creating a subscription to feature_mean
         self.create_subscription(Float64,'/feature_mean', self.feature_callback, 10)
 
         # Assignment 4: Adding a Node Parameter
@@ -26,31 +26,33 @@ class DoorOpener(Node):
         self.declare_parameter('threshold', 280)
         self.threshold = self.get_parameter('threshold').value
         self.state = 'init'
+        self.counter = 0
 
     def heartbeat(self):
         if self.state == 'init':
             if self.feature_mean > self.threshold: # open the door(over the threshold)
                 self.door(5.0)
-                self.log.info('opening the door...')
+                self.log.info('Opening the door...')
             if self.feature_mean < self.threshold:
-                self.state='move'
-        elif self.state == 'move': 
-            #self.move(2.0)
+                self.state='open'
+                self.log.info('Door is open, moving forward...')
+        elif self.state == 'open': 
             forward_speed = self.get_parameter('forward_speed').value
             self.move(forward_speed)
             self.counter += 1
             self.log.info(f'moving the robot at a speed of {forward_speed}...')
-            if self.counter == 25:
+            if self.counter >= 25:
                 self.state ='close'
                 self.counter = 0
+                self.log.info('Reached target, closing door...')
         elif self.state == 'close': # stop the robot(under the threshold)
             self.move(0.0)
+            self.log.info('Stopped moving the robot...')
             self.door(-5.0)
             self.counter += 1
-            self.log.info('stopped moving the robot...')
-            if self.counter == 10:
+            if self.counter >= 10:
                 self.state = "finished"
-                self.log.info('door closed...')
+                self.log.info('Door closed...')
                 self.counter = 0
 
     def spin(self):
