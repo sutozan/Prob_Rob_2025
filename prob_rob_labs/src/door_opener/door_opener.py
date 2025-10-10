@@ -36,10 +36,10 @@ class DoorOpener(Node):
         self.belief_threshold = 0.999
 
         # Bring in conditional probabilities from A5
-        self.P_open_open = 0.007 # P(z=open | x = open)
-        self.P_close_open = 0.993 # P(z=close | x = open)
-        self.P_open_close = 0.000 # P(z=open | x = close)
-        self.P_close_close = 1.000 # P(z=close | x = close)
+        self.P_open_open = 0.914 # P(z=open | x = open)
+        self.P_close_open = 0.0856 # P(z=close | x = open)
+        self.P_open_close = 0.0623 # P(z=open | x = close)
+        self.P_close_close = 0.9377 # P(z=close | x = close)
 
         # Setup file saving to save the measurment and belief calculations
         # Save inside the prob_rob_labs misc folder
