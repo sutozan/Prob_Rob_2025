@@ -44,7 +44,7 @@ class DoorOpener(Node):
         # Setup file saving to save the measurment and belief calculations
         # Save inside the prob_rob_labs misc folder
         self.file_path = os.path.expanduser("~/ros2_ws/src/prob_rob_labs_ros_2/prob_rob_labs/misc/Lab3_BayesFilter/A6-BeliefCalculations.csv")
-        self.csv_file = open(self.file_path, 'a', newline='')
+        self.csv_file = open(self.file_path, 'w', newline='')
         self.writer = csv.writer(self.csv_file)
         self.writer.writerow(['Measurment', 'Belief (open)'])
 
@@ -70,9 +70,9 @@ class DoorOpener(Node):
             self.log.info(f"Measurement: {z}, Belief (open) = {self.belief_open:0.5f}")
             self.writer.writerow([z, self.belief_open])
             
-            # Here is were we start out control loop.
+            # Here is were we start our control loop.
             self.door(5.0)
-            self.log.info(f'Opening door --> Belief(door open) = {self.belief_open:.5f}')
+            self.log.info(f'Belief(door open) = {self.belief_open:.5f}')
             if self.belief_open > self.belief_threshold:
                 self.state='open'
                 self.log.info('Door confirmed to be open --> Moving robot forward')
