@@ -33,13 +33,13 @@ class DoorOpener(Node):
 
         # Intialization for Bayesian Inference
         self.belief_open = 0.5
-        self.belief_threshold = 0.999
+        self.belief_threshold = 0.9999
 
         # Bring in conditional probabilities from A5
-        self.P_open_open = 0.914 # P(z=open | x = open)
-        self.P_close_open = 0.0856 # P(z=close | x = open)
-        self.P_open_close = 0.0623 # P(z=open | x = close)
-        self.P_close_close = 0.9377 # P(z=close | x = close)
+        self.P_open_open = 0.9125 # P(z=open | x = open)
+        self.P_close_open = 0.0875 # P(z=close | x = open)
+        self.P_open_close = 0.04305 # P(z=open | x = close)
+        self.P_close_close = 0.95694 # P(z=close | x = close)
 
         # Setup file saving to save the measurment and belief calculations
         # Save inside the prob_rob_labs misc folder
@@ -76,12 +76,12 @@ class DoorOpener(Node):
             if self.belief_open > self.belief_threshold:
                 self.state='open'
                 self.log.info('Door confirmed to be open --> Moving robot forward')
-
+        # Need this loop to move the robot now that we are confident with the threshold
         elif self.state == 'open': 
             forward_speed = self.get_parameter('forward_speed').value
             self.move(forward_speed)
             self.counter += 1
-            self.log.info(f'Moving the robot at a speed of {forward_speed} --> Belief(door open) = {self.belief_open:.5f}')
+            #self.log.info(f'Belief(door open) = {self.belief_open:.5f}') #Kept this for sanity check
             if self.counter >= 25:
                 self.state ='close'
                 self.counter = 0
@@ -111,10 +111,6 @@ class DoorOpener(Node):
 
     def feature_callback(self, msg):
         self.feature_mean = msg.data
-
-
-        
-
 
 
 def main():
