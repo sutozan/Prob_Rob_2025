@@ -170,7 +170,6 @@ class Odometry_Tracking(Node):
         self.state = self.state + K @ (z - C @ self.state)
         self.state_covariance = (np.eye(5) - K @ C) @ self.state_covariance
         
-        
         # Log predicted results
         self.log.info(
             f"Predicted: x={x_next:.3f} y={y_next:.3f} θ={theta_next:.3f} "
