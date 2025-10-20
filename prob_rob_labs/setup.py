@@ -33,6 +33,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'Odometry_Tracking = Odometry_Tracking.Odometry_Tracking:main',
             'StateExtraction = StateExtraction.StateExtraction:main',
             'Lab3_DataCollection = Lab3_DataCollection.Lab3_DataCollection:main',
             'door_opener = door_opener.door_opener:main',

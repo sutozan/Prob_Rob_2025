@@ -59,7 +59,7 @@ class StateExtraction(Node):
 
 def main():
     rclpy.init()
-    node = StateExtraction()       # ✅ instantiate the class
+    node = StateExtraction()      
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
