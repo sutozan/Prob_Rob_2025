@@ -24,6 +24,10 @@ class Odometry_Tracking(Node):
         # Now we initilize the nonlinear state update
         self.state = np.zeros(5)
 
+        # Initialize covariances for update
+        self.state_covariance = np.eye(5) * 0.01
+        self.input_covariance = np.diag([0.05**2, 0.05**2])
+
         # Initilize - Considering the latest command velocities
         self.u_v = 0.0
         self.u_w = 0.0
@@ -40,8 +44,52 @@ class Odometry_Tracking(Node):
         sync = ApproximateTimeSynchronizer([imu_sub, joint_sub], 10, 0.03)
         sync.registerCallback(self.synced_callback)
 
-        self.log.info("Step 1 - Setting up Prediction Model")
-        
+        self.log.info("Step 2 - Performing EKF Prediction")
+
+    def forgetting(self, dt):
+        a_v = math.pow(0.1, dt / self.tau_lin)
+        a_w = math.pow(0.1, dt / self.tau_ang)
+        return a_v, a_w
+    
+    def next_state(self, dt, a_v, a_w):
+        theta, x, y, v, w = self.state
+        u_v, u_w = self.u_v, self.u_w
+
+        # first-order dynamic response from manual notes
+        v_next = a_v * v + self.G_v * (1.0 - a_v) * u_v
+        w_next = a_w * w + self.G_w * (1.0 - a_w) * u_w
+
+        # Now get the next states
+        theta_next = theta + w * dt
+        x_next = x + v * math.cos(theta) * dt
+        y_next = y + v * math.sin(theta) * dt
+
+        # New states
+        x_pred = np.array([theta_next, x_next, y_next, v_next, w_next])
+
+        return  x_pred, theta_next, x_next, y_next, v_next, w_next
+    
+    def jacobians(self, dt, a_v, a_w, x_curr):
+        theta, x, y, v, w = x_curr
+
+        Gx = np.array([
+            [1, 0, 0, 0, dt],
+            [-v * math.sin(theta) * dt, 1, 0, math.cos(theta) * dt, 0],
+            [ v * math.cos(theta) * dt, 0, 1, math.sin(theta) * dt, 0],
+            [0, 0, 0, a_v, 0],
+            [0, 0, 0, 0, a_w]
+        ])
+
+        Gu = np.array([
+            [0.0, 0.0],
+            [0.0, 0.0],
+            [0.0, 0.0],
+            [self.G_v * (1 - a_v), 0.0],
+            [0.0, self.G_w * (1 - a_w)]
+        ])
+
+        return Gx, Gu
+
 
     def cmd_callback(self, msg):
         self.u_v = msg.linear.x
@@ -73,36 +121,23 @@ class Odometry_Tracking(Node):
 
         # Log before the prediction model
         self.log.info(
-            f"Δt={dt:.3f}s  ωr={w_r:.2f}  ωl={w_l:.2f}  "
-            f"ωg={w_g:.3f}  u_v={self.u_v:.2f}  u_ω={self.u_w:.2f}"
+            f"Δt={dt:.3f}s  wr={w_r:.2f}  wl={w_l:.2f}  "
+            f"wg={w_g:.3f}  u_v={self.u_v:.2f}  u_w={self.u_w:.2f}"
         )
 
-        # Set up the prediction model
+        # Now lets get our predicted results from the functions defined above
+        a_v, a_w = self.forgetting(dt)
+        Gx, Gu = self.jacobians(dt, a_v, a_w, self.state)
+        self.state_covariance = Gx @ self.state_covariance @ Gx.T + Gu @ self.input_covariance @ Gu.T
 
-        # Computer the forgetting factor
-        a_v = math.pow(0.1, dt / self.tau_lin)
-        a_w = math.pow(0.1, dt / self.tau_ang)
-
-        # unpack state and control
-        theta, x, y, v, ω = self.state
-        u_v, u_w = self.u_v, self.u_w
-
-        # first-order dynamic response
-        v_pred = a_v * v + self.G_v * (1.0 - a_v) * u_v
-        ω_pred = a_w * ω + self.G_w * (1.0 - a_w) * u_w
-
-        # integrate pose
-        theta_pred = theta + ω_pred * dt
-        x_pred = x + v_pred * math.cos(theta_pred) * dt
-        y_pred = y + v_pred * math.sin(theta_pred) * dt
-
-        # update state
-        self.state = np.array([theta_pred, x_pred, y_pred, v_pred, ω_pred])
+        x_pred, theta_next, x_next, y_next, v_next, w_next = self.next_state(dt, a_v, a_w)
+        self.state = x_pred
 
         # Log predicted results
-        self.get_logger().info(
-            f"Predicted: x={x_pred:.3f} y={y_pred:.3f} θ={theta_pred:.3f} "
-            f"v={v_pred:.3f} ω={ω_pred:.3f} (a_v={a_v:.3f}, a_w={a_w:.3f})"
+        self.log.info(
+            f"Predicted: x={x_next:.3f} y={y_next:.3f} θ={theta_next:.3f} "
+            f"v={v_next:.3f} w={w_next:.3f} (a_v={a_v:.3f}, a_w={a_w:.3f})"
+            f"Update Covariance = {self.state_covariance}"
         )
 
     
