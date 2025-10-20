@@ -89,23 +89,39 @@ class Odometry_Tracking(Node):
         ])
 
         return Gx, Gu
+    
+    def extract_measurements(self, imu_msg, joint_msg):
+        # Wheel parameters - given in manual
+        r = 0.033       # 33 mm = 0.033 m
+        R = 0.07175     # 71.75 mm = 0.07175 m
 
+        w_r = w_l = 0.0
+        if joint_msg.velocity:
+            for name, vel in zip(joint_msg.name, joint_msg.velocity):
+                if 'wheel_right' in name:
+                    w_r = vel
+                elif 'wheel_left' in name:
+                    w_l = vel
+        w_g = imu_msg.angular_velocity.z
+        z = np.array([w_r, w_l, w_g], dtype=float)
+
+        # Measurement matrix (C)
+        C = np.array([
+            [0.0, 0.0, 0.0, 1.0 / r,  R / r],
+            [0.0, 0.0, 0.0, 1.0 / r, -R / r],
+            [0.0, 0.0, 0.0, 0.0, 1.0]
+        ], dtype=float)
+
+        # Measurement covariance (R) - reasoning for selection in manual
+        R = np.diag([1.0, 1.0, 1.0])
+
+        return z, C, R
 
     def cmd_callback(self, msg):
         self.u_v = msg.linear.x
         self.u_w = msg.angular.z
 
     def synced_callback(self, imu_msg, joint_msg):
-        # Extracting w_g from gyroscope
-        w_g = imu_msg.angular_velocity.z
-
-        # Next we need wheel speeds from joint states
-        w_r = w_l = 0.0
-        for name, vel in zip(joint_msg.name, joint_msg.velocity):
-            if 'wheel_right_joint' in name:
-                w_r = vel
-            elif 'wheel_left_joint' in name:
-                w_l = vel
         
         # compute delta t # got 0.034s
         t = max(
@@ -116,8 +132,20 @@ class Odometry_Tracking(Node):
         if self.last_time is None:
             self.last_time = t
             return
+        
         dt = t - self.last_time
         self.last_time = t
+
+        # We moved this to the measurment extraction since it is needed there but will 
+        # also keep it here to make sure we can see what the outputs are before the filter
+        w_r = w_l = 0.0
+        if joint_msg.velocity:
+            for name, vel in zip(joint_msg.name, joint_msg.velocity):
+                if 'wheel_right' in name:
+                    w_r = vel
+                elif 'wheel_left' in name:
+                    w_l = vel
+        w_g = imu_msg.angular_velocity.z
 
         # Log before the prediction model
         self.log.info(
@@ -125,7 +153,7 @@ class Odometry_Tracking(Node):
             f"wg={w_g:.3f}  u_v={self.u_v:.2f}  u_w={self.u_w:.2f}"
         )
 
-        # Now lets get our predicted results from the functions defined above
+        # Prediction - Now lets get our predicted results from the functions defined above
         a_v, a_w = self.forgetting(dt)
         Gx, Gu = self.jacobians(dt, a_v, a_w, self.state)
         self.state_covariance = Gx @ self.state_covariance @ Gx.T + Gu @ self.input_covariance @ Gu.T
@@ -133,11 +161,20 @@ class Odometry_Tracking(Node):
         x_pred, theta_next, x_next, y_next, v_next, w_next = self.next_state(dt, a_v, a_w)
         self.state = x_pred
 
+        # Measurement extraction
+        z, C, R = self.extract_measurements(imu_msg, joint_msg)
+
+        # EKF Innovation / Correction
+        K = self.state_covariance @ C.T @ np.linalg.inv(C @ self.state_covariance @ C.T + R)
+        self.state = self.state + K @ (z - C @ self.state)
+        self.state_covariance = (np.eye(5) - K @ C) @ self.state_covariance
+        
+        
         # Log predicted results
         self.log.info(
             f"Predicted: x={x_next:.3f} y={y_next:.3f} θ={theta_next:.3f} "
             f"v={v_next:.3f} w={w_next:.3f} (a_v={a_v:.3f}, a_w={a_w:.3f})"
-            f"Update Covariance = {self.state_covariance}"
+            f"Update Covariance (Diag only) = {np.diag(self.state_covariance)}"
         )
 
     
