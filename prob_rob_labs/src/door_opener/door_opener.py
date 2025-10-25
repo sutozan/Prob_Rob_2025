@@ -89,7 +89,6 @@ class DoorOpener(Node):
             if self.belief_open > self.belief_threshold:
                 self.state='open'
                 self.log.info('Door confirmed to be open --> Moving robot forward')
-
         elif self.state == 'open': 
             forward_speed = self.get_parameter('forward_speed').value
             self.move(forward_speed)
@@ -132,7 +131,6 @@ class DoorOpener(Node):
 
 
         
-
 
 
 def main():
