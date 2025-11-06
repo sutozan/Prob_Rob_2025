@@ -10,10 +10,16 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='true',
                               description='set to true for simulation'),
+        DeclareLaunchArgument('color', default_value='magenta',
+                              description='set color for topic name'),
+        DeclareLaunchArgument('height', default_value='0.5',
+                              description='height of landmark'),
         Node(
             package='prob_rob_labs',
             executable='measurment_calculations',
             name='measurment_calculations',
-            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}]
+            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')},
+                        {'color': LaunchConfiguration('color')},
+                        {'height': LaunchConfiguration('height')}]
         )
     ])

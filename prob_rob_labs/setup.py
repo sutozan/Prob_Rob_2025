@@ -33,6 +33,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'covariance_calculations = covariance_calculations.covariance_calculations:main',
             'measurment_calculations = measurment_calculations.measurment_calculations:main',
             'vision_geometry = vision_geometry.vision_geometry:main',
             'euclidean_distance_determiner = euclidean_distance_determiner.euclidean_distance_determiner:main',
