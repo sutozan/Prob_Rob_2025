@@ -3,7 +3,9 @@ from rclpy.node import Node
 from gazebo_msgs.msg import LinkStates
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float32
 import math as m
+import os
 
 
 class CovarianceCalculations(Node):
@@ -12,10 +14,10 @@ class CovarianceCalculations(Node):
         super().__init__('covariance_calculations')
         self.log = self.get_logger()
 
-        # First bring in parametized values
+        # First bring in parametized values 
         self.declare_parameter('color', 'cyan')
         self.declare_parameter('landmark_name', 'landmark_5::link')
-        self.declare_parameter('dx_camera', 0.076)
+        self.declare_parameter('dx_camera', 0.076) # We got these values from the camera topic!!
         self.declare_parameter('dy_camera', 0.0)
 
         # Now get the parameters - standard
@@ -30,17 +32,23 @@ class CovarianceCalculations(Node):
         self.create_subscription(PoseStamped, '/tb3/ground_truth/pose', self.groundtruth_callback, 10)
 
         # Need to define topic name first
-        topic_name = f'/vision_{self.color}/distance_bearing'
-        self.create_subscription(Float32MultiArray, topic_name, self.measure_callback, 10)
+        # Subscribe separately to distance and bearing topics
+        topic_distance = f'/vision_{self.color}/distance'
+        topic_bearing  = f'/vision_{self.color}/bearing'
 
-        # create publisher for plotting
-        self.error = self.create_publisher(Float32MultiArray, f'/vision_{self.color}/error_characterization', 10)
+        self.create_subscription(Float32, topic_distance, self.distance_callback, 10)
+        self.create_subscription(Float32, topic_bearing, self.bearing_callback, 10)
+
+        # create publishers for plotting
+        self.error_distance = self.create_publisher(Float32, f'/vision_{self.color}/error_characterization/distance_error', 10)
+        self.error_bearing = self.create_publisher(Float32, f'/vision_{self.color}/error_characterization/bearing_error', 10)
 
         self.get_logger().info(f"Node started for landmark: {self.landmark_name}, color: {self.color}")
-
         # initialize for first run
         self.landmark_position = None
         self.gt_pose = None
+        self.d_measured = None
+        self.theta_measured = None
 
     def linkstate_callback(self, msg):
         # get right link index
@@ -56,13 +64,18 @@ class CovarianceCalculations(Node):
         yaw = m.atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y ** 2 + q.z ** 2))
         self.gt_pose = (position.x, position.y, yaw)
 
-    def measure_callback(self, msg):
+    def wrap_to_pi(self, angle):
+        return (angle + m.pi) % (2 * m.pi) - m.pi
+
+    def compute_error(self):
         # Check initalization - foudn through trial and error or else it crashes during the inital run
         if self.landmark_position is None or self.gt_pose is None: return
+        if self.d_measured is None or self.theta_measured is None: return
 
         # Now we calculate
         # First unpack measurment data and all the other data extracted from subscriptions
-        d_measured, theta_measured = msg.data
+        d_measured = self.d_measured
+        theta_measured = self.theta_measured
         x_gt, y_gt, theta_gt = self.gt_pose
         x_l, y_l = self.landmark_position
 
@@ -77,22 +90,44 @@ class CovarianceCalculations(Node):
         dy_gt = y_l - y_camera
         d_truth = m.sqrt(dx_gt**2 + dy_gt**2)
 
-        # now bearing. We need to also account for the angle of the robot
-        camera_offset = 1.57
-        theta_world = m.atan2(dy_gt, dx_gt) 
-        theta_truth = theta_world - (theta_gt + camera_offset) # now transform from world to camera. Subtracting theta_gt means we
-        # are removing the global postion of robot.
+        # Now we calculate the bearing error.
+        theta_world = m.atan2(dy_gt, dx_gt)
+        theta_truth = theta_world - theta_gt
 
-        # Now get errors and publish them
-        d_error = d_measured - d_truth
-        theta_error = theta_measured - theta_truth
+        # Now get errors and publish them - we made the absolute just as a preference
+        d_error = abs(d_measured - d_truth)
+        theta_error = abs(theta_measured - theta_truth)
 
-        e_msg = Float32MultiArray()
-        e_msg.data = [d_measured, d_error, theta_measured, theta_error]
-        self.error.publish(e_msg)
+        # publish results
+        dist_msg = Float32()
+        dist_msg.data = d_error
+        self.error_distance.publish(dist_msg)
 
-        # Also log
-        self.get_logger().info(f"d_measured={d_measured:.2f}, d_error={d_error:.2f}, theta_measured={theta_measured:.2f}, θ_err={theta_error:.2f}")
+        bearing_msg = Float32()
+        bearing_msg.data = theta_error
+        self.error_bearing.publish(bearing_msg)
+
+        # Also log - for checking
+        self.get_logger().info(f"d_measured={d_measured:.2f}, d_error={d_error:.2f}, theta_measured={theta_measured:.2f}, theta_err={theta_error:.2f}")
+        
+        # This part is for Assignment 4! --> to collect data.
+        # Save each measurement to a text log file for A4 data collect
+        if not os.path.exists('errors.csv'): # creates file
+            with open('errors.csv', "w") as f:
+                f.write("d_measured,d_error,theta_measured,theta_error\n")
+
+        with open('errors.csv', "a") as f: # if it does exist just appends to - MAKE SURE TO DELETE FILE IF WE WANT NEW START !
+            f.write(f"{d_measured:.3f},{d_error:.3f},{theta_measured:.3f},{theta_error:.3f}\n")
+
+
+    def distance_callback(self, msg):
+        self.d_measured = msg.data
+        self.compute_error()
+
+    def bearing_callback(self, msg):
+        self.theta_measured = msg.data
+        self.compute_error()
+
 
 
     def spin(self):

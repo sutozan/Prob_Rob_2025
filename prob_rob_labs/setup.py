@@ -33,6 +33,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'variance_estimation = variance_estimation.variance_estimation:main',
             'covariance_calculations = covariance_calculations.covariance_calculations:main',
             'measurment_calculations = measurment_calculations.measurment_calculations:main',
             'vision_geometry = vision_geometry.vision_geometry:main',

@@ -17,7 +17,7 @@ class VisionGeometry(Node):
         color = self.get_parameter('color').get_parameter_value().string_value
         manual = self.get_parameter('manual').get_parameter_value().bool_value
 
-        if manual:
+        if manual: # As per the lab manual, we also wanted to test some manual points. this is not used in the rest of the lab.
             test_points = [
                 (320, 263), (305, 263), (354, 136), (304, 137),
                 (339, 264), (320, 264), (341, 250), (320, 132)
@@ -31,10 +31,10 @@ class VisionGeometry(Node):
             self.log.info(f'Subscribing to topic: {topic_name}')
 
     def height_position(self, msg): # Remember a ROS 2 subscriber callback always 
-        # takes exactly one argument which is the msg.
-        points = msg.points
+        # takes exactly one argument which is the msg --> Common error we keep making, noted here.
+        points = msg.points # define points
         
-        # define the x and y values
+        # define the x and y values --> get them from points - simple iteration.
         x_values = [p.x for p in points]
         y_values = [p.y for p in points]
         
@@ -43,11 +43,12 @@ class VisionGeometry(Node):
         vertical_x = (min(x_values)+max(x_values))/2
         self.log.info(f"Height: {height:.3f}, Position of Vertical Symmetry Axis: {vertical_x:.3f}")
     
-    # This is only for feeding in some example points
+    # This is only for feeding in some example points - since this is a list it is iterated through it differently here.
     def compute_from_points(self, test_points):
         x_values = [p[0] for p in test_points]
         y_values = [p[1] for p in test_points]
 
+        # Same algorithm
         height = max(y_values) - min(y_values)
         vertical_x = (min(x_values)+max(x_values))/2
         self.log.info(f"Height: {height:.3f}, Position of Vertical Symmetry Axis: {vertical_x:.3f}")
