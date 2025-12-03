@@ -33,6 +33,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'ekf_localization = ekf_localization.ekf_localization:main',
             'variance_estimation = variance_estimation.variance_estimation:main',
             'covariance_calculations = covariance_calculations.covariance_calculations:main',
             'measurment_calculations = measurment_calculations.measurment_calculations:main',
