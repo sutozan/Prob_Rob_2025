@@ -12,11 +12,14 @@ def generate_launch_description():
                               description='set to true for simulation'),
         DeclareLaunchArgument('map_path', default_value='~/ros2_ws/src/prob_rob_labs_ros_2/prob_rob_labs/config/landmarks.json',
                               description='set path to map file'),
+        DeclareLaunchArgument('height', default_value='0.5',
+                              description='height of landmark'),
         Node(
             package='prob_rob_labs',
             executable='ekf_localization',
             name='ekf_localization',
             parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')},
-                        {'map_path': LaunchConfiguration('map_path')}]
+                        {'map_path': LaunchConfiguration('map_path')},
+                        {'height': LaunchConfiguration('height')}]
         )
     ])
