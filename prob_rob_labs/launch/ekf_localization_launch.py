@@ -14,12 +14,18 @@ def generate_launch_description():
                               description='set path to map file'),
         DeclareLaunchArgument('height', default_value='0.5',
                               description='height of landmark'),
+        DeclareLaunchArgument('dx_camera', default_value='0.076',
+                              description='set camera offset in x-axis '),
+        DeclareLaunchArgument('dy_camera', default_value='0.0',
+                              description='set camera offset in y-axis'),
         Node(
             package='prob_rob_labs',
             executable='ekf_localization',
             name='ekf_localization',
             parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')},
                         {'map_path': LaunchConfiguration('map_path')},
-                        {'height': LaunchConfiguration('height')}]
+                        {'height': LaunchConfiguration('height')},
+                        {'dx_camera': LaunchConfiguration('dx_camera')},
+                        {'dy_camera': LaunchConfiguration('dy_camera')},]
         )
     ])
