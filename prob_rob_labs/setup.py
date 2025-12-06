@@ -33,6 +33,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'map_odom = map_odom.map_odom:main',
             'ekf_localization_error = ekf_localization_error.ekf_localization_error:main',
             'ekf_localization = ekf_localization.ekf_localization:main',
             'variance_estimation = variance_estimation.variance_estimation:main',
