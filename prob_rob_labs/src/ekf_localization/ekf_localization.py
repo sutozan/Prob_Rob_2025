@@ -84,7 +84,7 @@ class EkfLocalization(Node):
         self.state = np.zeros(3)
 
         # Initialize covariances for update
-        self.state_covariance = np.eye(3) * 0.01
+        self.state_covariance = np.eye(3) * 1e-4
         self.input_covariance = np.diag([0.05**2, 0.05**2])
 
         # Initilize - Considering the latest command velocities
@@ -92,6 +92,7 @@ class EkfLocalization(Node):
         self.u_w = 0.0
         self.w_epsilon = 1e-3  # Threshold for treating angular velocity as zero
         self.last_time = None
+        self.initialized = False # this is for making sure measurment happens before odom
 
         # Subscriber for /cmd_vel and 
         self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
@@ -109,7 +110,7 @@ class EkfLocalization(Node):
         msg = PoseWithCovarianceStamped()
         msg.header.stamp.sec = int(t)
         msg.header.stamp.nanosec = int((t - int(t)) * 1e9) # fractional seconds.
-        msg.header.frame_id = "map" 
+        msg.header.frame_id = "odom" 
 
         # Position
         msg.pose.pose.position.x = self.state[0]
@@ -201,6 +202,8 @@ class EkfLocalization(Node):
         # Extract timestamp
         t = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
 
+        if not self.initialized: return
+
         if self.last_time is None: 
             return
 
@@ -239,6 +242,11 @@ class EkfLocalization(Node):
         # Time stamp of  measurement
         t = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
 
+        if not self.initialized:
+            self.last_time = t
+            self.initialized = True
+            return
+
         # Check filter intializtion - did the same in odom callback
         if self.last_time is None:
             self.last_time = t
@@ -258,6 +266,7 @@ class EkfLocalization(Node):
         x_camera = (self.dx_camera * m.cos(theta_r)) - (self.dy_camera * m.sin(theta_r)) + x_r
         y_camera = (self.dx_camera * m.sin(theta_r)) + (self.dy_camera * m.cos(theta_r)) + y_r
 
+
         x = landmark["x"]
         y = landmark["y"]
 
@@ -266,8 +275,7 @@ class EkfLocalization(Node):
         # Log in serial - commented out for A2 to reduce clutter
         #self.log.info(f'Landmark properties: {color}, x_pos: {x}, y_pos: {y}')
 
-        if self.fx is None or self.cx is None:
-            return
+        if self.fx is None or self.fy is None or self.cx is None or self.cy is None: return
         
         # From here on is the same code as the vision_geometry code.
         points = msg.points
@@ -282,7 +290,7 @@ class EkfLocalization(Node):
         # calculating height and veritical axis symmetry position
         dy = max(y_values) - min(y_values)
 
-        # ## Extension for Dropping the Offending Measurment ##
+        # Extension for Dropping the Offending Measurment 
         # realized we were getting 0 height sometime and this causes an issue within the reading.
         # need 4 points and positive height --> so we adjust for these.
         if len(points) < 2: return
@@ -326,7 +334,7 @@ class EkfLocalization(Node):
 
         # Now we calculate the bearing error.
         theta_world = m.atan2(dy_gt, dx_gt)
-        theta_pred = self.wrap_to_pi(theta_world - theta_r)
+        theta_pred = self.wrap_to_pi(theta_world-theta_r)
 
         # Define measured z and one from vision - for update
         z_meas = np.array([d_meas, theta_meas])  
@@ -366,11 +374,12 @@ class EkfLocalization(Node):
         self.state = np.array([x_r, y_r, theta_r]) # redefine 
 
         # Log results
-        self.log.info(
-            f"State: color={color} x={self.state[0]:.3f} y={self.state[1]:.3f} θ={self.state[2]:.3f} "
-            f"Update Covariance (Diag only) = {np.diag(self.state_covariance)}"
-        )
-
+        #self.log.info(
+            #f"State: color={color} x={self.state[0]:.3f} y={self.state[1]:.3f} θ={self.state[2]:.3f} "
+            #f"Update Covariance (Diag only) = {np.diag(self.state_covariance)}"
+        #)
+        
+        self.log.info(f"d_meas={d_meas} d_pred={d_pred} theta_meas = {theta_meas} theta_pred = {theta_pred}")
         self.publish_ekf_pose(t)
 
     def spin(self):
